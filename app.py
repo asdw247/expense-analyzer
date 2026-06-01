@@ -17,7 +17,7 @@ UPLOAD_DIR = Path("./uploads")
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png"}
 MOONSHOT_BASE_URL = "https://api.moonshot.cn/v1"
 MOONSHOT_MODEL = "moonshot-v1-8k-vision-preview"
-BUDGET_ADVICE_MODEL = "kimi-k2.5"
+BUDGET_ADVICE_MODEL = "moonshot-v1-8k"
 RECOGNITION_PROMPT = (
     "你是一个账单数据提取助手。请识别这张账单截图中的所有消费记录。"
     "每条记录提取：商户名称、消费金额、交易时间。\n\n"
