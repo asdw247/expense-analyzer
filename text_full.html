@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>全流程测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 30px auto; }
+        .step { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin: 15px 0; }
+        .step h3 { margin-top: 0; }
+        button { padding: 10px 20px; background: #ff6b35; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; white-space: pre-wrap; font-size: 13px; max-height: 200px; overflow-y: auto; }
+        .success { color: #155724; }
+        .error { color: #721c24; }
+    </style>
+</head>
+<body>
+    <h2>🔄 全流程测试：识图 → 分析</h2>
+    
+    <!-- 第一步：上传识别 -->
+    <div class="step">
+        <h3>第一步：上传账单截图</h3>
+        <input type="file" id="fileInput" accept="image/*">
+        <button onclick="step1Upload()">开始识别</button>
+        <p>识别结果（消费记录）：</p>
+        <pre id="uploadResult">等待上传...</pre>
+    </div>
+    
+    <!-- 第二步：消费分析 -->
+    <div class="step">
+        <h3>第二步：生成分析报告</h3>
+        <button id="analyzeBtn" onclick="step2Analyze()" disabled>先完成第一步识别</button>
+        <p>分析报告：</p>
+        <pre id="analyzeResult">等待分析...</pre>
+    </div>
+
+    <script>
+        let recognizedData = null;  // 存储识别结果
+        
+        // 第一步：上传图片并识别
+        async function step1Upload() {
+            const fileInput = document.getElementById('fileInput');
+            const resultDiv = document.getElementById('uploadResult');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            
+            if (!fileInput.files[0]) {
+                resultDiv.textContent = '请先选择一张图片';
+                return;
+            }
+            
+            resultDiv.textContent = '识别中...';
+            analyzeBtn.disabled = true;
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (response.ok && Array.isArray(data)) {
+                    recognizedData = data;
+                    resultDiv.textContent = JSON.stringify(data, null, 2);
+                    analyzeBtn.disabled = false;
+                    analyzeBtn.textContent = '用这组数据生成分析报告';
+                } else {
+                    resultDiv.textContent = '识别失败：' + JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                resultDiv.textContent = '网络错误：' + error.message;
+            }
+        }
+        
+        // 第二步：用识别结果生成分析报告
+        async function step2Analyze() {
+            const resultDiv = document.getElementById('analyzeResult');
+            
+            if (!recognizedData) {
+                resultDiv.textContent = '请先完成第一步识别';
+                return;
+            }
+            
+            resultDiv.textContent = '分析中...';
+            
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(recognizedData)
+                });
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultDiv.textContent = '网络错误：' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

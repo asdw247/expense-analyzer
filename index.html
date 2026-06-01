@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>消费分析助手</title>
+  <style>
+    :root {
+      --background: hsl(40, 33%, 98%);
+      --foreground: hsl(24, 10%, 10%);
+      --card: hsl(0, 0%, 100%);
+      --card-foreground: hsl(24, 10%, 10%);
+      --muted: hsl(40, 20%, 94%);
+      --muted-foreground: hsl(24, 6%, 45%);
+      --primary: hsl(24, 95%, 53%);
+      --primary-foreground: hsl(0, 0%, 100%);
+      --accent: hsl(340, 82%, 60%);
+      --destructive: hsl(0, 84%, 60%);
+      --border: hsl(40, 15%, 88%);
+      --ring: hsl(24, 95%, 53%);
+      --radius: 0.75rem;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.06);
+      --shadow: 0 4px 12px rgba(0,0,0,.08);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--background);
+      color: var(--foreground);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .container { max-width: 48rem; margin: 0 auto; padding: 0 1rem; }
+
+    /* Header */
+    header {
+      position: sticky; top: 0; z-index: 50;
+      background: color-mix(in srgb, var(--card) 80%, transparent);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .header-inner { display: flex; align-items: center; gap: 0.75rem; padding: 1rem 0; }
+    .logo-icon {
+      width: 2.5rem; height: 2.5rem; border-radius: 0.75rem;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .logo-icon svg { width: 1.25rem; height: 1.25rem; color: var(--primary-foreground); }
+    header h1 { font-size: 1.125rem; font-weight: 700; }
+    header p { font-size: 0.75rem; color: var(--muted-foreground); }
+
+    /* Tabs */
+    .tabs-list {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      height: 3rem; border-radius: 1rem;
+      background: var(--muted); padding: 0.25rem; gap: 0.25rem;
+    }
+    .tab-trigger {
+      display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+      border: none; border-radius: 0.75rem; background: transparent;
+      font-size: 0.875rem; font-weight: 500; color: var(--muted-foreground);
+      cursor: pointer; transition: all 0.2s;
+    }
+    .tab-trigger svg { width: 1rem; height: 1rem; flex-shrink: 0; }
+    .tab-trigger.active {
+      background: var(--card); color: var(--foreground);
+      box-shadow: var(--shadow-sm);
+    }
+    .tab-trigger:hover:not(.active) { color: var(--foreground); }
+    .tab-label-long { display: none; }
+    @media (min-width: 640px) {
+      .tab-label-short { display: none; }
+      .tab-label-long { display: inline; }
+    }
+
+    .tab-panel { display: none; margin-top: 1.5rem; }
+    .tab-panel.active { display: block; }
+
+    main .content-area { padding: 1.5rem 0; }
+    footer {
+      padding: 1.5rem 0; text-align: center;
+      font-size: 0.875rem; color: var(--muted-foreground);
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .card + .card { margin-top: 1rem; }
+    .card-title { font-size: 0.9375rem; font-weight: 600; margin-bottom: 0.75rem; }
+
+    /* Upload zone */
+    .upload-zone {
+      border: 2px dashed var(--border); border-radius: var(--radius);
+      padding: 2.5rem 1.5rem; text-align: center; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--primary); background: color-mix(in srgb, var(--primary) 5%, transparent);
+    }
+    .upload-zone svg { width: 2.5rem; height: 2.5rem; color: var(--muted-foreground); margin-bottom: 0.75rem; }
+    .upload-zone p { font-size: 0.875rem; color: var(--muted-foreground); }
+    .upload-zone .hint { font-size: 0.75rem; margin-top: 0.25rem; }
+    #fileInput { display: none; }
+
+    .preview-img {
+      max-width: 100%; max-height: 12rem; border-radius: 0.5rem;
+      margin-top: 1rem; object-fit: contain;
+    }
+
+    .recognize-status {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 1rem; padding: 0.625rem 0.75rem;
+      background: var(--muted); border-radius: calc(var(--radius) - 2px);
+      font-size: 0.875rem;
+    }
+    .recognize-status span { color: var(--foreground); font-weight: 500; }
+    #recognizedCount { color: var(--primary); font-weight: 700; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      padding: 0.625rem 1.25rem; border-radius: calc(var(--radius) - 2px);
+      font-size: 0.875rem; font-weight: 500; border: none; cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: var(--primary-foreground); width: 100%; margin-top: 1rem; }
+    .btn-primary:hover:not(:disabled) { opacity: 0.9; }
+    .btn-outline {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--foreground); padding: 0.375rem 0.75rem; font-size: 0.8125rem;
+    }
+    .btn-outline:hover { background: var(--muted); }
+
+    /* Transaction list */
+    .txn-list { margin-top: 1rem; }
+    .txn-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.75rem 0; border-bottom: 1px solid var(--border);
+    }
+    .txn-item:last-child { border-bottom: none; }
+    .txn-merchant { font-weight: 500; font-size: 0.9375rem; }
+    .txn-meta { font-size: 0.75rem; color: var(--muted-foreground); margin-top: 0.125rem; }
+    .txn-amount { font-weight: 600; color: var(--primary); font-size: 1rem; }
+    .txn-actions { display: flex; align-items: center; gap: 0.75rem; }
+
+    /* Loading & alerts */
+    .loading {
+      display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+      padding: 1rem; color: var(--muted-foreground); font-size: 0.875rem;
+    }
+    .spinner {
+      width: 1.25rem; height: 1.25rem; border: 2px solid var(--border);
+      border-top-color: var(--primary); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .alert {
+      padding: 0.75rem 1rem; border-radius: calc(var(--radius) - 2px);
+      font-size: 0.875rem; margin-top: 1rem;
+    }
+    .alert-error { background: hsl(0, 84%, 97%); color: hsl(0, 72%, 40%); border: 1px solid hsl(0, 84%, 90%); }
+    .alert-warning { background: hsl(38, 92%, 95%); color: hsl(32, 80%, 35%); border-left: 4px solid var(--primary); }
+
+    /* Report tab */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    @media (min-width: 480px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }
+    .stat-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1rem; text-align: center;
+    }
+    .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
+    .stat-label { font-size: 0.75rem; color: var(--muted-foreground); margin-top: 0.25rem; }
+
+    .label-badge {
+      display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: white; font-size: 0.8125rem; font-weight: 600;
+    }
+
+    .category-row { margin-bottom: 0.75rem; }
+    .category-header {
+      display: flex; justify-content: space-between; font-size: 0.8125rem;
+      margin-bottom: 0.25rem;
+    }
+    .category-bar {
+      height: 0.5rem; background: var(--muted); border-radius: 9999px; overflow: hidden;
+    }
+    .category-fill { height: 100%; border-radius: 9999px; transition: width 0.5s ease; }
+
+    .chart-row { display: grid; grid-template-columns: 1fr; gap: 1rem; margin-top: 1rem; }
+    @media (min-width: 640px) { .chart-row { grid-template-columns: 1fr 1fr; } }
+    .chart-box { text-align: center; }
+    .chart-box canvas { max-width: 100%; }
+
+    .comment-box {
+      background: color-mix(in srgb, var(--primary) 8%, var(--card));
+      border-left: 3px solid var(--primary);
+      padding: 1rem; border-radius: calc(var(--radius) - 2px);
+      font-size: 0.9375rem; line-height: 1.6; margin-top: 1rem;
+    }
+
+    .tips-list { list-style: none; margin-top: 0.75rem; }
+    .tips-list li {
+      padding: 0.5rem 0; font-size: 0.875rem;
+      display: flex; gap: 0.5rem; align-items: flex-start;
+    }
+    .tips-list li::before { content: "💡"; flex-shrink: 0; }
+
+    .empty-state {
+      text-align: center; padding: 3rem 1.5rem; color: var(--muted-foreground);
+    }
+    .empty-state svg { width: 4rem; height: 4rem; opacity: 0.4; margin-bottom: 1rem; }
+    .empty-state h3 { font-size: 1rem; color: var(--foreground); margin-bottom: 0.5rem; }
+
+    /* Budget tab */
+    .form-group { margin-bottom: 1rem; }
+    .form-group label {
+      display: block; font-size: 0.8125rem; font-weight: 500;
+      margin-bottom: 0.375rem; color: var(--muted-foreground);
+    }
+    .form-input {
+      width: 100%; padding: 0.625rem 0.75rem; border: 1px solid var(--border);
+      border-radius: calc(var(--radius) - 2px); font-size: 0.9375rem;
+      background: var(--background); color: var(--foreground);
+    }
+    .form-input:focus { outline: 2px solid var(--ring); outline-offset: 1px; }
+
+    .progress-wrap { margin: 1rem 0; }
+    .progress-header {
+      display: flex; justify-content: space-between; font-size: 0.8125rem;
+      margin-bottom: 0.375rem;
+    }
+    .progress-bar {
+      height: 0.75rem; background: var(--muted); border-radius: 9999px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 9999px; transition: width 0.5s ease, background 0.3s;
+    }
+    .progress-fill.ok { background: hsl(142, 71%, 45%); }
+    .progress-fill.warn { background: var(--primary); }
+    .progress-fill.danger { background: var(--destructive); }
+
+    .budget-stats {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;
+      margin-top: 1rem; text-align: center;
+    }
+    .budget-stat-val { font-size: 1.25rem; font-weight: 700; }
+    .budget-stat-lbl { font-size: 0.75rem; color: var(--muted-foreground); }
+
+    .advice-tips { margin-top: 0.75rem; }
+    .advice-tips li {
+      padding: 0.625rem 0.75rem; background: var(--muted);
+      border-radius: calc(var(--radius) - 2px); margin-bottom: 0.5rem;
+      font-size: 0.875rem; list-style: none;
+    }
+    .advice-tips li::before { content: "✨ "; }
+  </style>
+</head>
+<body>
+  <main class="min-h-screen">
+    <header>
+      <div class="container header-inner">
+        <div class="logo-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+        </div>
+        <div>
+          <h1>消费分析助手</h1>
+          <p>管好每一分钱</p>
+        </div>
+      </div>
+    </header>
+
+    <div class="container content-area">
+      <div class="tabs-list" role="tablist">
+        <button class="tab-trigger active" data-tab="upload" role="tab" aria-selected="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+          <span class="tab-label-long">上传账单</span><span class="tab-label-short">上传</span>
+        </button>
+        <button class="tab-trigger" data-tab="report" role="tab" aria-selected="false">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+          <span class="tab-label-long">消费报告</span><span class="tab-label-short">报告</span>
+        </button>
+        <button class="tab-trigger" data-tab="budget" role="tab" aria-selected="false">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+          <span class="tab-label-long">预算管理</span><span class="tab-label-short">预算</span>
+        </button>
+      </div>
+
+      <!-- 上传账单 -->
+      <div id="panel-upload" class="tab-panel active" role="tabpanel">
+        <div class="card">
+          <div class="upload-zone" id="uploadZone">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+            <p>点击或拖拽上传账单截图</p>
+            <p class="hint">支持 JPG、PNG 格式</p>
+          </div>
+          <input type="file" id="fileInput" accept="image/jpeg,image/jpg,image/png">
+          <img id="previewImg" class="preview-img" alt="" style="display:none">
+          <div class="recognize-status" id="recognizeStatusBar">
+            <span>已累计识别：<span id="recognizedCount">0</span> 条记录</span>
+            <button type="button" class="btn btn-outline" id="clearRecognizedBtn">清空记录</button>
+          </div>
+          <button type="button" class="btn btn-primary" id="recognizeBtn" disabled>识别账单</button>
+          <div id="uploadAlert"></div>
+        </div>
+
+        <div class="card" id="txnCard" style="display:none">
+          <div class="card-title">识别到的消费记录 (<span id="txnCount">0</span> 笔)</div>
+          <div class="txn-list" id="txnList"></div>
+          <button class="btn btn-primary" id="generateBtn" disabled>生成消费报告</button>
+        </div>
+      </div>
+
+      <!-- 消费报告 -->
+      <div id="panel-report" class="tab-panel" role="tabpanel">
+        <div id="reportEmpty" class="empty-state card">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+          <h3>暂无消费报告</h3>
+          <p>请先上传账单并生成报告</p>
+        </div>
+        <div id="reportContent" style="display:none">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="totalSpentDisplay">¥0</div>
+              <div class="stat-label">本月总消费</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="txnCountDisplay">0</div>
+              <div class="stat-label">消费笔数</div>
+            </div>
+            <div class="stat-card" style="grid-column: span 2;">
+              <div class="label-badge" id="personalityLabel">—</div>
+              <div class="stat-label" style="margin-top:0.5rem">消费人格</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">消费分类</div>
+            <div id="categoryBars"></div>
+            <div class="chart-row">
+              <div class="chart-box">
+                <canvas id="pieChart" width="220" height="220"></canvas>
+              </div>
+              <div class="chart-box">
+                <canvas id="trendChart" width="280" height="200"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">AI 消费点评</div>
+            <div class="comment-box" id="aiComment"></div>
+            <ul class="tips-list" id="aiTips"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- 预算管理 -->
+      <div id="panel-budget" class="tab-panel" role="tabpanel">
+        <div class="card">
+          <div class="card-title">设置月度预算</div>
+          <div class="form-group">
+            <label for="userId">用户 ID</label>
+            <input class="form-input" type="text" id="userId" value="test_user">
+          </div>
+          <div class="form-group">
+            <label for="monthlyBudget">月度预算（元）</label>
+            <input class="form-input" type="number" id="monthlyBudget" value="2000" min="1" step="100">
+          </div>
+          <button class="btn btn-primary" id="saveBudgetBtn" style="margin-top:0">保存预算</button>
+          <div id="budgetSetAlert"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">预算使用情况</div>
+          <p style="font-size:0.8125rem;color:var(--muted-foreground);margin-bottom:0.75rem">
+            已消费金额根据账单记录自动计算
+          </p>
+          <button class="btn btn-outline" id="refreshStatusBtn">刷新状态</button>
+          <div id="budgetStatusArea" style="margin-top:1rem"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">AI 省钱建议</div>
+          <button class="btn btn-primary" id="getAdviceBtn" style="margin-top:0">获取省钱建议</button>
+          <ul class="advice-tips" id="adviceTips"></ul>
+          <div id="adviceAlert"></div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="container">
+      <p>💰 理性消费，从记录开始</p>
+    </footer>
+  </main>
+
+  <script>
+    const API_BASE = 'http://localhost:5000';
+
+    const CATEGORY_COLORS = {
+      '一日三餐': '#22c55e', '外卖': '#f97316', '奶茶咖啡零食': '#ec4899',
+      '网购': '#3b82f6', '社交聚餐': '#a855f7', '交通出行': '#06b6d4',
+      '游戏娱乐': '#6366f1', '其他消费': '#94a3b8'
+    };
+
+    let activeTab = 'upload';
+    let transactions = [];
+    let recognizedBills = [];
+    let currentFile = null;
+    let analysis = null;
+    let uploadLoading = false;
+    let analyzeLoading = false;
+
+    // --- Tab switching ---
+    document.querySelectorAll('.tab-trigger').forEach(btn => {
+      btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+    });
+
+    function setActiveTab(tab) {
+      activeTab = tab;
+      document.querySelectorAll('.tab-trigger').forEach(btn => {
+        const isActive = btn.dataset.tab === tab;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', isActive);
+      });
+      document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.classList.toggle('active', panel.id === `panel-${tab}`);
+      });
+      if (tab === 'budget') refreshBudgetStatus();
+    }
+
+    // --- Upload ---
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileInput');
+    const previewImg = document.getElementById('previewImg');
+    const uploadAlert = document.getElementById('uploadAlert');
+    const recognizeBtn = document.getElementById('recognizeBtn');
+    const recognizedCountEl = document.getElementById('recognizedCount');
+    const clearRecognizedBtn = document.getElementById('clearRecognizedBtn');
+    const txnCard = document.getElementById('txnCard');
+    const txnList = document.getElementById('txnList');
+    const generateBtn = document.getElementById('generateBtn');
+
+    uploadZone.addEventListener('click', () => fileInput.click());
+    uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+    uploadZone.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadZone.classList.remove('dragover');
+      if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) handleFile(fileInput.files[0]);
+    });
+    recognizeBtn.addEventListener('click', () => {
+      if (currentFile && !uploadLoading) uploadBill(currentFile);
+    });
+    clearRecognizedBtn.addEventListener('click', clearRecognizedBills);
+
+    function showAlert(el, msg, type = 'error') {
+      el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+    }
+    function clearAlert(el) { el.innerHTML = ''; }
+
+    async function handleFile(file) {
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (!['jpg', 'jpeg', 'png'].includes(ext)) {
+        showAlert(uploadAlert, '仅支持 JPG、PNG 格式');
+        return;
+      }
+      clearAlert(uploadAlert);
+      currentFile = file;
+      previewImg.src = URL.createObjectURL(file);
+      previewImg.style.display = 'block';
+      recognizeBtn.disabled = false;
+      recognizeBtn.textContent = '识别账单';
+    }
+
+    function updateRecognizedCount() {
+      recognizedCountEl.textContent = recognizedBills.length;
+    }
+
+    function syncTransactions() {
+      transactions = recognizedBills;
+    }
+
+    function clearRecognizedBills() {
+      recognizedBills = [];
+      transactions = [];
+      analysis = null;
+      currentFile = null;
+      updateRecognizedCount();
+      txnCard.style.display = 'none';
+      generateBtn.disabled = true;
+      previewImg.style.display = 'none';
+      previewImg.src = '';
+      fileInput.value = '';
+      recognizeBtn.disabled = true;
+      recognizeBtn.textContent = '识别账单';
+      clearAlert(uploadAlert);
+    }
+
+    async function uploadBill(file) {
+      uploadLoading = true;
+      recognizeBtn.disabled = true;
+      recognizeBtn.textContent = '识别中...';
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch(`${API_BASE}/api/upload`, {
+          method: 'POST',
+          headers: { 'ngrok-skip-browser-warning': 'true' },
+          body: formData
+        });
+        const data = await res.json();
+
+        if (!res.ok || data.status === 'error') {
+          throw new Error(data.message || '识别失败');
+        }
+        if (!Array.isArray(data) || data.length === 0) {
+          throw new Error('未识别到消费记录，请换一张更清晰的截图');
+        }
+
+        if (!recognizedBills || !recognizedBills.length) recognizedBills = [];
+
+        const newRecords = data.map((r, i) => ({
+          id: `txn-${Date.now()}-${i}`,
+          merchant: r.merchant || '未知商户',
+          amount: Number(r.amount) || 0,
+          time: r.time || ''
+        }));
+        recognizedBills = recognizedBills.concat(newRecords);
+        syncTransactions();
+        analysis = null;
+        updateRecognizedCount();
+        renderTxnList();
+        txnCard.style.display = 'block';
+        generateBtn.disabled = false;
+        clearAlert(uploadAlert);
+        recognizeBtn.textContent = '✅ 已识别，可以继续上传';
+        recognizeBtn.disabled = false;
+      } catch (err) {
+        showAlert(uploadAlert, err.message);
+        recognizeBtn.disabled = !currentFile;
+        recognizeBtn.textContent = '识别账单';
+      } finally {
+        uploadLoading = false;
+      }
+    }
+
+    function renderTxnList() {
+      document.getElementById('txnCount').textContent = recognizedBills.length;
+      txnList.innerHTML = recognizedBills.map(t => `
+        <div class="txn-item" data-id="${t.id}">
+          <div>
+            <div class="txn-merchant">${escapeHtml(t.merchant)}</div>
+            <div class="txn-meta">${escapeHtml(t.time)}</div>
+          </div>
+          <div class="txn-actions">
+            <span class="txn-amount">¥${t.amount.toFixed(2)}</span>
+            <button class="btn btn-outline" onclick="removeTxn('${t.id}')">删除</button>
+          </div>
+        </div>`).join('');
+    }
+
+    function removeTxn(id) {
+      recognizedBills = recognizedBills.filter(t => t.id !== id);
+      syncTransactions();
+      updateRecognizedCount();
+      if (recognizedBills.length === 0) {
+        txnCard.style.display = 'none';
+        generateBtn.disabled = true;
+        analysis = null;
+      } else {
+        renderTxnList();
+      }
+    }
+
+    generateBtn.addEventListener('click', generateReport);
+
+    async function generateReport() {
+      if (!transactions.length || analyzeLoading) return;
+      analyzeLoading = true;
+      generateBtn.disabled = true;
+      generateBtn.textContent = '分析中...';
+
+      const payload = transactions.map(({ merchant, amount, time }) => ({ merchant, amount, time }));
+
+      try {
+        const res = await fetch(`${API_BASE}/api/analyze`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok || data.status === 'error') {
+          throw new Error(data.message || '分析失败');
+        }
+        analysis = data;
+        renderReport();
+        setActiveTab('report');
+      } catch (err) {
+        showAlert(uploadAlert, err.message);
+      } finally {
+        analyzeLoading = false;
+        generateBtn.disabled = transactions.length === 0;
+        generateBtn.textContent = '生成消费报告';
+      }
+    }
+
+    function getTotalSpent() {
+      return transactions.reduce((sum, t) => sum + t.amount, 0);
+    }
+
+    function getTopCategory() {
+      if (!analysis?.summary) return '其他消费';
+      const entries = Object.entries(analysis.summary);
+      if (!entries.length) return '其他消费';
+      return entries.sort((a, b) => b[1].amount - a[1].amount)[0][0];
+    }
+
+    // --- Report ---
+    function renderReport() {
+      const empty = document.getElementById('reportEmpty');
+      const content = document.getElementById('reportContent');
+
+      if (!analysis || !transactions.length) {
+        empty.style.display = 'block';
+        content.style.display = 'none';
+        return;
+      }
+      empty.style.display = 'none';
+      content.style.display = 'block';
+
+      const total = getTotalSpent();
+      document.getElementById('totalSpentDisplay').textContent = `¥${total.toFixed(2)}`;
+      document.getElementById('txnCountDisplay').textContent = transactions.length;
+      document.getElementById('personalityLabel').textContent = analysis.label || '—';
+      document.getElementById('aiComment').textContent = analysis.comment || '';
+      document.getElementById('aiTips').innerHTML = (analysis.tips || [])
+        .map(t => `<li>${escapeHtml(t)}</li>`).join('');
+
+      renderCategoryBars(analysis.summary || {});
+      drawPieChart(analysis.summary || {});
+      drawTrendChart(analysis.trend || {});
+    }
+
+    function renderCategoryBars(summary) {
+      const container = document.getElementById('categoryBars');
+      container.innerHTML = Object.entries(summary).map(([cat, data]) => {
+        const color = CATEGORY_COLORS[cat] || '#94a3b8';
+        return `
+          <div class="category-row">
+            <div class="category-header">
+              <span>${escapeHtml(cat)}</span>
+              <span>¥${data.amount.toFixed(2)} (${data.percentage}%)</span>
+            </div>
+            <div class="category-bar">
+              <div class="category-fill" style="width:${data.percentage}%;background:${color}"></div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function drawPieChart(summary) {
+      const canvas = document.getElementById('pieChart');
+      const ctx = canvas.getContext('2d');
+      const entries = Object.entries(summary);
+      if (!entries.length) return;
+
+      const cx = canvas.width / 2, cy = canvas.height / 2, r = 90;
+      let start = -Math.PI / 2;
+      const total = entries.reduce((s, [, d]) => s + d.amount, 0);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      entries.forEach(([cat, data]) => {
+        const slice = (data.amount / total) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, start, start + slice);
+        ctx.closePath();
+        ctx.fillStyle = CATEGORY_COLORS[cat] || '#94a3b8';
+        ctx.fill();
+        start += slice;
+      });
+      ctx.beginPath();
+      ctx.arc(cx, cy, 50, 0, Math.PI * 2);
+      ctx.fillStyle = varCard();
+      ctx.fill();
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--foreground').trim() || '#333';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`¥${total.toFixed(0)}`, cx, cy);
+    }
+
+    function varCard() {
+      return getComputedStyle(document.documentElement).getPropertyValue('--card').trim() || '#fff';
+    }
+
+    function drawTrendChart(trend) {
+      const canvas = document.getElementById('trendChart');
+      const ctx = canvas.getContext('2d');
+      const weeks = Object.keys(trend);
+      const values = Object.values(trend);
+      if (!weeks.length) return;
+
+      const pad = { l: 40, r: 10, t: 20, b: 30 };
+      const w = canvas.width - pad.l - pad.r;
+      const h = canvas.height - pad.t - pad.b;
+      const max = Math.max(...values, 1);
+      const barW = w / weeks.length * 0.6;
+      const gap = w / weeks.length;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted-foreground').trim() || '#888';
+      ctx.font = '11px sans-serif';
+
+      weeks.forEach((week, i) => {
+        const barH = (values[i] / max) * h;
+        const x = pad.l + i * gap + (gap - barW) / 2;
+        const y = pad.t + h - barH;
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#f97316';
+        ctx.fillRect(x, y, barW, barH);
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted-foreground').trim();
+        ctx.textAlign = 'center';
+        ctx.fillText(week, x + barW / 2, canvas.height - 8);
+        ctx.fillText(`¥${values[i]}`, x + barW / 2, y - 4);
+      });
+    }
+
+    // --- Budget ---
+    document.getElementById('saveBudgetBtn').addEventListener('click', saveBudget);
+    document.getElementById('refreshStatusBtn').addEventListener('click', refreshBudgetStatus);
+    document.getElementById('getAdviceBtn').addEventListener('click', getBudgetAdvice);
+
+    async function saveBudget() {
+      const userId = document.getElementById('userId').value.trim();
+      const budget = parseFloat(document.getElementById('monthlyBudget').value);
+      const el = document.getElementById('budgetSetAlert');
+
+      if (!userId) { showAlert(el, '请输入用户 ID'); return; }
+      if (!budget || budget <= 0) { showAlert(el, '预算金额须大于 0'); return; }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/budget/set`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+          },
+          body: JSON.stringify({ user_id: userId, monthly_budget: budget })
+        });
+        const data = await res.json();
+        if (!res.ok || data.status === 'error') throw new Error(data.message || '保存失败');
+        showAlert(el, `预算已保存：¥${data.budget}`, 'warning');
+        refreshBudgetStatus();
+      } catch (err) {
+        showAlert(el, err.message);
+      }
+    }
+
+    async function refreshBudgetStatus() {
+      const userId = document.getElementById('userId').value.trim();
+      const spent = getTotalSpent();
+      const area = document.getElementById('budgetStatusArea');
+
+      if (!userId) {
+        area.innerHTML = '<p style="color:var(--muted-foreground);font-size:0.875rem">请输入用户 ID</p>';
+        return;
+      }
+
+      area.innerHTML = '<div class="loading"><span class="spinner"></span>查询中...</div>';
+
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/budget/status?user_id=${encodeURIComponent(userId)}&total_spent=${spent}`,
+          { headers: { 'ngrok-skip-browser-warning': 'true' } }
+        );
+        const data = await res.json();
+
+        if (res.status === 404) {
+          area.innerHTML = `<div class="alert alert-warning">${escapeHtml(data.message || '请先设置预算')}</div>`;
+          return;
+        }
+        if (!res.ok || data.status === 'error') throw new Error(data.message || '查询失败');
+
+        const pct = data.percentage;
+        const barClass = pct > 100 ? 'danger' : pct > 80 ? 'warn' : 'ok';
+
+        area.innerHTML = `
+          <div class="budget-stats">
+            <div><div class="budget-stat-val">¥${data.budget}</div><div class="budget-stat-lbl">月度预算</div></div>
+            <div><div class="budget-stat-val" style="color:var(--primary)">¥${data.spent.toFixed(2)}</div><div class="budget-stat-lbl">已消费</div></div>
+            <div><div class="budget-stat-val" style="color:${data.remaining >= 0 ? 'hsl(142,71%,45%)' : 'var(--destructive)'}">¥${data.remaining.toFixed(2)}</div><div class="budget-stat-lbl">剩余</div></div>
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-header"><span>预算使用</span><span>${pct}%</span></div>
+            <div class="progress-bar">
+              <div class="progress-fill ${barClass}" style="width:${Math.min(pct, 100)}%"></div>
+            </div>
+          </div>
+          ${data.warning ? '<div class="alert alert-warning" style="margin-top:0.75rem">⚠️ 已超过预算的 80%，请注意控制消费！</div>' : ''}`;
+      } catch (err) {
+        area.innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    async function getBudgetAdvice() {
+      const el = document.getElementById('adviceAlert');
+      const tipsEl = document.getElementById('adviceTips');
+      const budget = parseFloat(document.getElementById('monthlyBudget').value) || 0;
+      const spent = getTotalSpent();
+
+      if (!budget) { showAlert(el, '请先设置月度预算'); return; }
+
+      tipsEl.innerHTML = '';
+      showAlert(el, '', 'warning');
+      document.getElementById('getAdviceBtn').disabled = true;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/budget/advice`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+          },
+          body: JSON.stringify({
+            spent,
+            budget,
+            remaining: Math.round((budget - spent) * 100) / 100,
+            top_category: getTopCategory()
+          })
+        });
+        const data = await res.json();
+        if (!res.ok || data.status === 'error') throw new Error(data.message || '获取建议失败');
+        tipsEl.innerHTML = (data.tips || []).map(t => `<li>${escapeHtml(t)}</li>`).join('');
+        clearAlert(el);
+      } catch (err) {
+        showAlert(el, err.message);
+      } finally {
+        document.getElementById('getAdviceBtn').disabled = false;
+      }
+    }
+
+    function escapeHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    // Initial report state
+    renderReport();
+  </script>
+</body>
+</html>

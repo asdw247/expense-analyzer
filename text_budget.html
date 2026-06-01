@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>测试预算管理</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 500px; margin: 30px auto; }
+        .card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin: 15px 0; }
+        input { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 10px 20px; background: #ff6b35; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; white-space: pre-wrap; }
+        .warning { background: #ffe6e6; padding: 10px; border-radius: 5px; border-left: 4px solid #ff4444; }
+    </style>
+</head>
+<body>
+    <h2>💰 测试预算管理</h2>
+    
+    <!-- 设置预算 -->
+    <div class="card">
+        <h3>设置月度预算</h3>
+        <input type="text" id="userId" placeholder="用户ID" value="test_user">
+        <input type="number" id="budget" placeholder="预算金额（元）" value="2000">
+        <button onclick="setBudget()">保存预算</button>
+        <pre id="setResult">等待设置...</pre>
+    </div>
+    
+    <!-- 查询状态 -->
+    <div class="card">
+        <h3>查询预算状态</h3>
+        <input type="number" id="totalSpent" placeholder="本月已消费（元）" value="1700">
+        <button onclick="checkStatus()">查询状态</button>
+        <pre id="statusResult">等待查询...</pre>
+    </div>
+    
+    <!-- 超支建议 -->
+    <div class="card">
+        <h3>获取省钱建议</h3>
+        <button onclick="getAdvice()">获取建议</button>
+        <pre id="adviceResult">等待建议...</pre>
+    </div>
+
+    <script>
+        const BASE = 'https://all-coins-smile.loca.lt';
+        
+        async function setBudget() {
+            const userId = document.getElementById('userId').value;
+            const budget = document.getElementById('budget').value;
+            const resultDiv = document.getElementById('setResult');
+            
+            resultDiv.textContent = '保存中...';
+            
+            try {
+                const res = await fetch(`${BASE}/api/budget/set`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, monthly_budget: parseFloat(budget) })
+                });
+                const data = await res.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+                resultDiv.textContent = '错误：' + e.message;
+            }
+        }
+        
+        async function checkStatus() {
+            const userId = document.getElementById('userId').value;
+            const spent = document.getElementById('totalSpent').value;
+            const resultDiv = document.getElementById('statusResult');
+            
+            resultDiv.textContent = '查询中...';
+            
+            try {
+                const res = await fetch(`${BASE}/api/budget/status?user_id=${userId}&total_spent=${spent}`);
+                const data = await res.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                
+                if (data.warning) {
+                    resultDiv.innerHTML += '<div class="warning">⚠️ 已超过预算的80%，请注意控制消费！</div>';
+                }
+            } catch (e) {
+                resultDiv.textContent = '错误：' + e.message;
+            }
+        }
+        
+        async function getAdvice() {
+            const budget = document.getElementById('budget').value;
+            const spent = document.getElementById('totalSpent').value;
+            const resultDiv = document.getElementById('adviceResult');
+            
+            resultDiv.textContent = '获取中...';
+            
+            try {
+                const res = await fetch(`${BASE}/api/budget/advice`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        spent: parseFloat(spent),
+                        budget: parseFloat(budget),
+                        remaining: budget - spent,
+                        top_category: "外卖"
+                    })
+                });
+                const data = await res.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+                resultDiv.textContent = '错误：' + e.message;
+            }
+        }
+    </script>
+</body>
+</html>
