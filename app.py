@@ -297,7 +297,7 @@ def _call_kimi_analysis(summary_text: str, count: int, total: float) -> dict:
             "Content-Type": "application/json",
         },
         json=payload,
-        timeout=60,
+        timeout=120,
     )
     response.raise_for_status()
     data = response.json()
@@ -398,7 +398,7 @@ def _call_kimi_vision(image_b64: str, image_format: str) -> list:
             "Content-Type": "application/json",
         },
         json=payload,
-        timeout=120,
+        timeout=180,
     )
     response.raise_for_status()
     data = response.json()
