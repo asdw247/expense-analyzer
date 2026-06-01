@@ -6,6 +6,7 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+from PIL import Image
 
 import requests
 from dotenv import load_dotenv
@@ -439,7 +440,16 @@ def upload_bill():
         save_path = UPLOAD_DIR / f"bill_{timestamp}.{ext}"
         file.save(save_path)
 
-        with open(save_path, "rb") as image_file:
+        try:
+            img = Image.open(save_path)
+            img.thumbnail((1024, 1024), Image.LANCZOS)
+            compressed_path = UPLOAD_DIR / f"bill_{timestamp}_compressed.{ext}"
+            img.save(compressed_path, quality=70, optimize=True)
+            read_path = compressed_path
+        except Exception:
+            read_path = save_path
+
+        with open(read_path, "rb") as image_file:
             image_b64 = base64.b64encode(image_file.read()).decode("utf-8")
 
         records = _call_kimi_vision(image_b64, image_format)
