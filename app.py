@@ -80,7 +80,7 @@ DEFAULT_BUDGET_ADVICE_TIPS = [
     "可以检查一下订阅服务，取消暂时用不到的也能省下一笔",
 ]
 
-BUDGET_ADVICE_TIMEOUT = 30
+BUDGET_ADVICE_TIMEOUT = 60
 
 BUDGET_ADVICE_PROMPT_TEMPLATE = (
     "用户本月预算{budget}元，已花{spent}元，剩余{remaining}元，"
