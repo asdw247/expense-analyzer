@@ -325,7 +325,9 @@ def _fallback_analysis() -> dict:
 def _call_kimi_budget_advice(
     spent: float, budget: float, remaining: float, top_category: str
 ) -> list:
-    """调用 Kimi（Moonshot）API 生成预算省钱建议。"""
+    """调用 Kimi API 生成预算省钱建议。"""
+    import re
+    
     api_key = os.getenv("MOONSHOT_API_KEY")
     if not api_key:
         raise ValueError("未配置环境变量 MOONSHOT_API_KEY")
@@ -353,22 +355,42 @@ def _call_kimi_budget_advice(
     data = response.json()
     content = data["choices"][0]["message"]["content"]
     
-    # 尝试从回复中提取 JSON（Kimi 可能加额外文字）
-    import re
-    json_match = re.search(r'\{[^{}]*"tips"\s*:\s*\[[^\]]*\][^{}]*\}', content)
-    if json_match:
-        content = json_match.group()
+    # 多种方式尝试提取 tips
+    tips = None
     
-    parsed = json.loads(content)
-
-    tips = parsed.get("tips", [])
-    if not isinstance(tips, list):
-        raise ValueError("Kimi 返回的 tips 不是数组")
+    # 方式1：直接解析整个 JSON
+    try:
+        parsed = json.loads(content)
+        if isinstance(parsed, dict) and "tips" in parsed:
+            tips = parsed["tips"]
+    except Exception:
+        pass
+    
+    # 方式2：正则提取 JSON 对象
+    if tips is None:
+        try:
+            match = re.search(r'\{[^{}]*"tips"\s*:\s*\[[^\]]*\][^{}]*\}', content)
+            if match:
+                parsed = json.loads(match.group())
+                tips = parsed.get("tips")
+        except Exception:
+            pass
+    
+    # 方式3：正则直接提取数组内容
+    if tips is None:
+        try:
+            match = re.search(r'\[([^\]]*)\]', content)
+            if match:
+                tips_str = match.group()
+                tips = json.loads(tips_str)
+        except Exception:
+            pass
+    
+    if tips is None or not isinstance(tips, list) or len(tips) < 1:
+        raise ValueError(f"无法从 Kimi 回复中提取建议: {content[:200]}")
+    
     tips = [str(t).strip() for t in tips if str(t).strip()][:3]
-    if len(tips) < 3:
-        raise ValueError("Kimi 返回的省钱建议不足 3 条")
     return tips
-
 
 def _fallback_budget_advice() -> list:
     """Kimi 不可用时的默认省钱建议。"""
