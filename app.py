@@ -91,7 +91,8 @@ BUDGET_ADVICE_PROMPT_TEMPLATE = (
     "可类似「注意到您本月花费稍快」「这里有几个小方法帮您平衡开支」。"
     "建议措辞用「可以试试」「不妨考虑」等，不说教。"
     "注意：输出时使用英文双引号，不要使用中文引号。"
-    '直接输出JSON格式：{{"tips":["建议1","建议2","建议3"]}}'
+    "严格只输出一行JSON，不要加```标记，不要加任何解释文字。"
+    '输出示例：{{"tips":["可以试试减少外卖次数","不妨考虑购买打折商品","可以制定每日消费计划"]}}'
 )
 
 ANALYSIS_PROMPT_TEMPLATE = (
@@ -355,9 +356,20 @@ def _call_kimi_budget_advice(
     response.raise_for_status()
     data = response.json()
     content = data["choices"][0]["message"]["content"]
-
-        # 把中文引号替换为英文引号
+    
+    # 清理 Kimi 返回的各种不规范引号和格式
+    import re
+    # 去掉首尾空白
+    content = content.strip()
+    # 去掉 markdown 代码块标记
+    content = re.sub(r'```(?:json)?\s*', '', content)
+    content = content.replace('```', '')
+    # 中文引号 → 英文引号
     content = content.replace('\u201c', '"').replace('\u201d', '"')
+    # 双重引号 "" → "
+    content = content.replace('""', '"')
+    # 去掉多余的转义
+    content = content.replace('\\"', '"')
     
     # 多种方式尝试提取 tips
     tips = None
