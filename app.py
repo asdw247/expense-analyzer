@@ -352,7 +352,14 @@ def _call_kimi_budget_advice(
     response.raise_for_status()
     data = response.json()
     content = data["choices"][0]["message"]["content"]
-    parsed = _parse_json_object_from_content(content)
+    
+    # 尝试从回复中提取 JSON（Kimi 可能加额外文字）
+    import re
+    json_match = re.search(r'\{[^{}]*"tips"\s*:\s*\[[^\]]*\][^{}]*\}', content)
+    if json_match:
+        content = json_match.group()
+    
+    parsed = json.loads(content)
 
     tips = parsed.get("tips", [])
     if not isinstance(tips, list):
