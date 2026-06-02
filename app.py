@@ -727,6 +727,9 @@ def budget_advice():
   #  except Exception as e:
       #  return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route('/images/<path:filename>')
+def serve_image(filename):
+    return send_from_directory('images', filename)
 
 if __name__ == "__main__":
     print("服务器已启动，访问 http://127.0.0.1:5000")
