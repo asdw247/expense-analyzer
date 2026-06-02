@@ -652,7 +652,13 @@
       const total = getTotalSpent();
       document.getElementById('totalSpentDisplay').textContent = `¥${total.toFixed(2)}`;
       document.getElementById('txnCountDisplay').textContent = transactions.length;
-      document.getElementById('personalityLabel').textContent = analysis.label || '—';
+      const label = analysis.label || '—';
+      const labelEl = document.getElementById('personalityLabel');
+      if (LABEL_IMAGES[label]) {
+      labelEl.innerHTML = `<img src="${LABEL_IMAGES[label]}" alt="${label}" style="width:40px;height:40px;vertical-align:middle;margin-right:6px;border-radius:8px;">${label}`;
+      } else {
+      labelEl.textContent = label;
+      }
       document.getElementById('aiComment').textContent = analysis.comment || '';
       document.getElementById('aiTips').innerHTML = (analysis.tips || [])
         .map(t => `<li>${escapeHtml(t)}</li>`).join('');
