@@ -656,16 +656,28 @@ def budget_advice():
         top_category = str(data.get("top_category", "")).strip()
         if not top_category:
             return jsonify({"status": "error", "message": "top_category 不能为空"}), 400
-
-        try:
+            
+         try:
             tips = _call_kimi_budget_advice(spent, budget, remaining, top_category)
-        except Exception:
+            return jsonify({"status": "ok", "tips": tips, "source": "kimi"}), 200
+        except Exception as e:
+       # 把错误信息也返回，方便调试
             tips = _fallback_budget_advice()
+        return jsonify({
+                 "status": "ok", 
+                 "tips": tips, 
+                 "source": "default",
+                 "debug_error": str(e)  # 暂时加上，定位问题后删掉
+                  }), 200
+       # try:
+        #    tips = _call_kimi_budget_advice(spent, budget, remaining, top_category)
+       # except Exception:
+      #      tips = _fallback_budget_advice()
 
-        return jsonify({"status": "ok", "tips": tips}), 200
+       # return jsonify({"status": "ok", "tips": tips}), 200
 
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+   # except Exception as e:
+        #return jsonify({"status": "error", "message": str(e)}), 500
 
 
 if __name__ == "__main__":
