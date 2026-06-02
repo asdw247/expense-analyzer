@@ -354,6 +354,9 @@ def _call_kimi_budget_advice(
     response.raise_for_status()
     data = response.json()
     content = data["choices"][0]["message"]["content"]
+
+        # 把中文引号替换为英文引号
+    content = content.replace('\u201c', '"').replace('\u201d', '"')
     
     # 多种方式尝试提取 tips
     tips = None
